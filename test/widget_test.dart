@@ -115,6 +115,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Деталі будинку'), findsOneWidget);
     expect(find.text('3 з 4'), findsOneWidget);
+    expect(find.text('Версія 1.0.0'), findsOneWidget);
 
     // Зміна на екрані деталей видна після повернення
     await tester.tap(switchOf('Телевізор'));
