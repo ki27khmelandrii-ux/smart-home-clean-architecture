@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'screens/home_screen.dart';
-import 'state/smart_home_notifier.dart';
-import 'state/theme_notifier.dart';
+import 'presentation/screens/home_screen.dart';
+import 'presentation/state/smart_home_notifier.dart';
+import 'presentation/state/theme_notifier.dart';
 
 void main() {
   runApp(

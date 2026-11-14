@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 
 import 'package:smart_home/main.dart';
-import 'package:smart_home/state/smart_home_notifier.dart';
-import 'package:smart_home/state/theme_notifier.dart';
+import 'package:smart_home/presentation/state/smart_home_notifier.dart';
+import 'package:smart_home/presentation/state/theme_notifier.dart';
 
 /// Застосунок із тими самими провайдерами, що й у main().
 Widget buildApp(SmartHomeNotifier home) {
