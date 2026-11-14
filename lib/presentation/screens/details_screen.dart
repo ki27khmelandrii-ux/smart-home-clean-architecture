@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
+import '../../config/app_config.dart';
 import '../state/smart_home_notifier.dart';
 import '../widgets/device_tile.dart';
 
@@ -52,6 +53,13 @@ class DetailsScreen extends StatelessWidget {
           const SizedBox(height: 8),
           for (final name in home.devices.keys)
             DeviceTile(key: ValueKey(name), name: name),
+          const SizedBox(height: 16),
+          Center(
+            child: Text(
+              'Версія ${AppConfig.version}',
+              style: textTheme.bodySmall,
+            ),
+          ),
         ],
       ),
     );

@@ -1,52 +1,15 @@
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:material_ui/material_ui.dart';
 
-import 'screens/home_screen.dart';
-import 'state/smart_home_notifier.dart';
-import 'state/theme_notifier.dart';
+import 'presentation/app.dart';
+import 'presentation/di/injection.dart';
 
-void main() {
-  runApp(
-    // Провайдери розміщено над MaterialApp, тому стан доступний
-    // на всіх екранах (головний екран і екран деталей).
-    MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => SmartHomeNotifier()),
-        ChangeNotifierProvider(create: (_) => ThemeNotifier()),
-      ],
-      child: const MyApp(),
-    ),
-  );
-}
+/// Точка входу застосунку (Presentation-шар).
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  // Composition Root: усі шари збираються в createSmartHome().
+  final home = createSmartHome();
+  await home.load();
 
-  @override
-  Widget build(BuildContext context) {
-    // context.select: MaterialApp перебудовується лише при зміні теми,
-    // а не при зміні стану пристроїв.
-    final themeMode = context.select<ThemeNotifier, ThemeMode>(
-      (theme) => theme.themeMode,
-    );
-
-    return MaterialApp(
-      title: 'Розумний дім',
-      debugShowCheckedModeBanner: false,
-      theme: _buildTheme(Brightness.light),
-      darkTheme: _buildTheme(Brightness.dark),
-      themeMode: themeMode,
-      home: const HomeScreen(),
-    );
-  }
-
-  static ThemeData _buildTheme(Brightness brightness) {
-    return ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: const Color(0xFF6750A4),
-        brightness: brightness,
-      ),
-    );
-  }
+  runApp(SmartHomeApp(home: home));
 }

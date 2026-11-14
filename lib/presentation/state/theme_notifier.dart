@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Незалежний глобальний стан теми оформлення (світла / темна).
 class ThemeNotifier extends ChangeNotifier {
