@@ -1,9 +1,12 @@
+import '../../config/app_config.dart';
 import '../../domain/entities/home_settings.dart';
 import '../../domain/repositories/settings_repository.dart';
 
 /// Реалізація [SettingsRepository], що зберігає налаштування в пам'яті.
 class InMemorySettingsRepository implements SettingsRepository {
-  HomeSettings _settings = const HomeSettings();
+  HomeSettings _settings = const HomeSettings(
+    brightness: AppConfig.initialBrightness,
+  );
 
   @override
   Future<HomeSettings> load() async => _settings;
