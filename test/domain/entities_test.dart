@@ -24,10 +24,17 @@ void main() {
       expect(settings.brightnessPercent, 50);
     });
 
-    test('copyWith змінює лише передані поля', () {
-      final settings = const HomeSettings().copyWith(room: 'Кухня');
-      expect(settings.room, 'Кухня');
-      expect(settings.brightness, 0.5);
+    test('withBrightness обмежує яскравість діапазоном 0–100 %', () {
+      const settings = HomeSettings();
+      expect(settings.withBrightness(0.8).brightnessPercent, 80);
+      expect(settings.withBrightness(1.7).brightness, 1.0);
+      expect(settings.withBrightness(-0.3).brightness, 0.0);
+    });
+
+    test('withRoom приймає лише кімнати з переліку', () {
+      const settings = HomeSettings();
+      expect(settings.withRoom('Кухня').room, 'Кухня');
+      expect(settings.withRoom('Гараж'), settings); // невідома кімната
     });
   });
 }
