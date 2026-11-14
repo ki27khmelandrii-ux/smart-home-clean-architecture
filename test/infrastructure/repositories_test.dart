@@ -24,6 +24,11 @@ void main() {
       final devices = await InMemoryDeviceRepository().getAll();
       expect(() => devices.clear(), throwsUnsupportedError);
     });
+
+    test('приймає початкові дані через конструктор', () async {
+      final repo = InMemoryDeviceRepository([const Device(name: 'Бойлер')]);
+      expect((await repo.getAll()).single.name, 'Бойлер');
+    });
   });
 
   test('InMemorySettingsRepository зберігає налаштування', () async {
