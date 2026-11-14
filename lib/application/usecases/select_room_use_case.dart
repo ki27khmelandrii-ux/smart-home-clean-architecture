@@ -10,6 +10,7 @@ class SelectRoomUseCase {
   Future<HomeSettings> call(String room) async {
     final current = await _repository.load();
     final updated = current.withRoom(room);
+    if (updated == current) return current; // нічого не змінилось
     await _repository.save(updated);
     return updated;
   }

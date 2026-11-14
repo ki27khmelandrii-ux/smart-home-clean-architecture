@@ -80,4 +80,10 @@ void main() {
     expect(result.room, 'Кухня');
     expect(settings.stored.room, 'Кухня');
   });
+
+  test('налаштування без змін не перезаписуються у сховищі', () async {
+    await SetBrightnessUseCase(settings)(0.5); // те саме значення
+    await SelectRoomUseCase(settings)('Гараж'); // невідома кімната
+    expect(settings.saves, 0);
+  });
 }
