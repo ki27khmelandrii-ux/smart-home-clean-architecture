@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:smart_home/domain/entities/device.dart';
 import 'package:smart_home/infrastructure/repositories/in_memory_device_repository.dart';
