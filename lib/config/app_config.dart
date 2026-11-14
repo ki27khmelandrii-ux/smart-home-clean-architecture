@@ -7,4 +7,7 @@ class AppConfig {
 
   /// Назва застосунку.
   static const String appTitle = 'Розумний дім';
+
+  /// Версія застосунку (показується на екрані деталей).
+  static const String version = '1.0.0';
 }
