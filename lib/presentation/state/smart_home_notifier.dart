@@ -1,62 +1,83 @@
 import 'package:flutter/foundation.dart';
 
-/// Глобальний стан розумного дому (ЛР №4, варіант 22).
+import '../../application/usecases/get_devices_use_case.dart';
+import '../../application/usecases/get_settings_use_case.dart';
+import '../../application/usecases/select_room_use_case.dart';
+import '../../application/usecases/set_brightness_use_case.dart';
+import '../../application/usecases/toggle_device_use_case.dart';
+import '../../domain/entities/device.dart';
+import '../../domain/entities/home_settings.dart';
+
+/// Стан екрана «Розумний дім» (Presentation-шар).
 ///
-/// Зберігає стан пристроїв, яскравість освітлення та активну кімнату.
-/// Віджети читають стан через публічні геттери, а змінюють лише
-/// через методи, які після зміни викликають notifyListeners().
+/// Notifier не містить бізнес-логіки і не знає, де зберігаються дані:
+/// кожну дію він делегує відповідному use case, а результат
+/// показує віджетам через notifyListeners().
 class SmartHomeNotifier extends ChangeNotifier {
-  /// Перелік кімнат будинку.
-  static const List<String> rooms = ['Вітальня', 'Спальня', 'Кухня', 'Ванна'];
+  SmartHomeNotifier({
+    required GetDevicesUseCase getDevices,
+    required ToggleDeviceUseCase toggleDevice,
+    required GetSettingsUseCase getSettings,
+    required SetBrightnessUseCase setBrightness,
+    required SelectRoomUseCase selectRoom,
+  })  : _getDevices = getDevices,
+        _toggleDevice = toggleDevice,
+        _getSettings = getSettings,
+        _setBrightness = setBrightness,
+        _selectRoom = selectRoom;
 
-  // ─── 1. Приватні поля стану ─────────────────────────────────
-  final Map<String, bool> _devices = {
-    'Лампа у вітальні': true,
-    'Кондиціонер': false,
-    'Телевізор': true,
-    'Розумна колонка': false,
-  };
-  double _brightness = 0.5;
-  String _room = rooms.first;
+  final GetDevicesUseCase _getDevices;
+  final ToggleDeviceUseCase _toggleDevice;
+  final GetSettingsUseCase _getSettings;
+  final SetBrightnessUseCase _setBrightness;
+  final SelectRoomUseCase _selectRoom;
 
-  // ─── 2. Публічні геттери (лише читання) ─────────────────────
-  /// Незмінна копія словника: змінити стан в обхід методів неможливо.
-  Map<String, bool> get devices => Map.unmodifiable(_devices);
+  /// Перелік кімнат береться з Domain-шару.
+  static const List<String> rooms = HomeSettings.rooms;
 
-  double get brightness => _brightness;
+  List<Device> _devices = const [];
+  HomeSettings _settings = const HomeSettings();
 
-  int get brightnessPercent => (_brightness * 100).round();
+  // ─── Геттери для віджетів (API не змінився з ЛР №4) ─────────
+  Map<String, bool> get devices =>
+      Map.unmodifiable({for (final d in _devices) d.name: d.isOn});
 
-  String get room => _room;
+  double get brightness => _settings.brightness;
+
+  int get brightnessPercent => _settings.brightnessPercent;
+
+  String get room => _settings.room;
 
   int get totalCount => _devices.length;
 
-  /// Кількість увімкнених пристроїв.
-  int get activeCount => _devices.values.where((isOn) => isOn).length;
+  int get activeCount => _devices.where((d) => d.isOn).length;
 
-  bool isOn(String name) => _devices[name] ?? false;
+  bool isOn(String name) => _devices.any((d) => d.name == name && d.isOn);
 
-  // ─── 3. Методи зміни стану ──────────────────────────────────
-  /// Перемикає пристрій (увімкнено ↔ вимкнено).
-  void toggleDevice(String name) {
-    final current = _devices[name];
-    if (current == null) return; // невідомий пристрій
-    _devices[name] = !current;
+  // ─── Дії користувача → use cases ────────────────────────────
+  /// Початкове завантаження даних зі сховища.
+  Future<void> load() async {
+    _devices = await _getDevices();
+    _settings = await _getSettings();
     notifyListeners();
   }
 
-  /// Встановлює яскравість у межах 0.0–1.0.
-  void setBrightness(double value) {
-    final newValue = value.clamp(0.0, 1.0).toDouble();
-    if (newValue == _brightness) return; // стан не змінився
-    _brightness = newValue;
+  Future<void> toggleDevice(String name) async {
+    final updated = await _toggleDevice(name);
+    if (updated == null) return; // невідомий пристрій
+    _devices = [for (final d in _devices) d.name == name ? updated : d];
     notifyListeners();
   }
 
-  /// Робить активною одну з кімнат переліку [rooms].
-  void setRoom(String room) {
-    if (room == _room || !rooms.contains(room)) return;
-    _room = room;
+  Future<void> setBrightness(double value) async =>
+      _applySettings(await _setBrightness(value));
+
+  Future<void> setRoom(String room) async =>
+      _applySettings(await _selectRoom(room));
+
+  void _applySettings(HomeSettings settings) {
+    if (settings == _settings) return; // стан не змінився
+    _settings = settings;
     notifyListeners();
   }
 }
