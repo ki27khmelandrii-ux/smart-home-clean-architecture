@@ -1,39 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:provider/provider.dart';
-import 'package:smart_home/application/usecases/get_devices_use_case.dart';
-import 'package:smart_home/application/usecases/get_settings_use_case.dart';
-import 'package:smart_home/application/usecases/select_room_use_case.dart';
-import 'package:smart_home/application/usecases/set_brightness_use_case.dart';
-import 'package:smart_home/application/usecases/toggle_device_use_case.dart';
+import 'package:smart_home/domain/entities/device.dart';
 import 'package:smart_home/infrastructure/repositories/in_memory_device_repository.dart';
-import 'package:smart_home/infrastructure/repositories/in_memory_settings_repository.dart';
-import 'package:smart_home/main.dart';
+import 'package:smart_home/presentation/app.dart';
+import 'package:smart_home/presentation/di/injection.dart';
 import 'package:smart_home/presentation/state/smart_home_notifier.dart';
-import 'package:smart_home/presentation/state/theme_notifier.dart';
 
-/// Збирає ті самі залежності, що й main() (поки що дублюючи код).
+/// Ті самі залежності, що й у main(): createSmartHome — єдиний Composition Root.
 Future<SmartHomeNotifier> createLoadedHome() async {
-  final devices = InMemoryDeviceRepository();
-  final settings = InMemorySettingsRepository();
-  final home = SmartHomeNotifier(
-    getDevices: GetDevicesUseCase(devices),
-    toggleDevice: ToggleDeviceUseCase(devices),
-    getSettings: GetSettingsUseCase(settings),
-    setBrightness: SetBrightnessUseCase(settings),
-    selectRoom: SelectRoomUseCase(settings),
-  );
+  final home = createSmartHome();
   await home.load();
   return home;
 }
 
-Widget buildApp(SmartHomeNotifier home) => MultiProvider(
-      providers: [
-        ChangeNotifierProvider.value(value: home),
-        ChangeNotifierProvider(create: (_) => ThemeNotifier()),
-      ],
-      child: const MyApp(),
-    );
+Widget buildApp(SmartHomeNotifier home) => SmartHomeApp(home: home);
 
 Finder switchOf(String device) => find.descendant(
       of: find.widgetWithText(ListTile, device),
@@ -124,5 +104,20 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2 з 4'), findsOneWidget);
     expect(home.isOn('Телевізор'), isFalse);
+  });
+
+  testWidgets('Сховище підмінюється без зміни use cases і віджетів',
+      (tester) async {
+    // Інший набір даних передається через DI, решта коду та сама
+    final home = createSmartHome(
+      devices: InMemoryDeviceRepository([
+        const Device(name: 'Бойлер', isOn: true),
+      ]),
+    );
+    await home.load();
+    await tester.pumpWidget(buildApp(home));
+
+    expect(find.text('Бойлер'), findsOneWidget);
+    expect(find.text('1 з 1'), findsOneWidget);
   });
 }
