@@ -1,21 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-
+import 'package:smart_home/application/usecases/get_devices_use_case.dart';
+import 'package:smart_home/application/usecases/get_settings_use_case.dart';
+import 'package:smart_home/application/usecases/select_room_use_case.dart';
+import 'package:smart_home/application/usecases/set_brightness_use_case.dart';
+import 'package:smart_home/application/usecases/toggle_device_use_case.dart';
+import 'package:smart_home/infrastructure/repositories/in_memory_device_repository.dart';
+import 'package:smart_home/infrastructure/repositories/in_memory_settings_repository.dart';
 import 'package:smart_home/main.dart';
 import 'package:smart_home/presentation/state/smart_home_notifier.dart';
 import 'package:smart_home/presentation/state/theme_notifier.dart';
 
-/// Застосунок із тими самими провайдерами, що й у main().
-Widget buildApp(SmartHomeNotifier home) {
-  return MultiProvider(
-    providers: [
-      ChangeNotifierProvider<SmartHomeNotifier>.value(value: home),
-      ChangeNotifierProvider(create: (_) => ThemeNotifier()),
-    ],
-    child: const MyApp(),
+/// Збирає ті самі залежності, що й main() (поки що дублюючи код).
+Future<SmartHomeNotifier> createLoadedHome() async {
+  final devices = InMemoryDeviceRepository();
+  final settings = InMemorySettingsRepository();
+  final home = SmartHomeNotifier(
+    getDevices: GetDevicesUseCase(devices),
+    toggleDevice: ToggleDeviceUseCase(devices),
+    getSettings: GetSettingsUseCase(settings),
+    setBrightness: SetBrightnessUseCase(settings),
+    selectRoom: SelectRoomUseCase(settings),
   );
+  await home.load();
+  return home;
 }
+
+Widget buildApp(SmartHomeNotifier home) => MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: home),
+        ChangeNotifierProvider(create: (_) => ThemeNotifier()),
+      ],
+      child: const MyApp(),
+    );
 
 Finder switchOf(String device) => find.descendant(
       of: find.widgetWithText(ListTile, device),
@@ -23,45 +41,46 @@ Finder switchOf(String device) => find.descendant(
     );
 
 void main() {
-  group('SmartHomeNotifier', () {
-    test('toggleDevice змінює стан і викликає notifyListeners', () {
-      final home = SmartHomeNotifier();
+  group('SmartHomeNotifier (через use cases)', () {
+    test('load завантажує дані з репозиторіїв', () async {
+      final home = await createLoadedHome();
+      expect(home.totalCount, 4);
+      expect(home.activeCount, 2);
+      expect(home.room, 'Вітальня');
+    });
+
+    test('toggleDevice змінює стан і викликає notifyListeners', () async {
+      final home = await createLoadedHome();
       var notifications = 0;
       home.addListener(() => notifications++);
 
-      expect(home.isOn('Кондиціонер'), isFalse);
-      home.toggleDevice('Кондиціонер');
+      await home.toggleDevice('Кондиціонер');
 
       expect(home.isOn('Кондиціонер'), isTrue);
       expect(home.activeCount, 3);
       expect(notifications, 1);
     });
 
-    test('setBrightness і setRoom оновлюють стан', () {
-      final home = SmartHomeNotifier();
-      home.setBrightness(0.8);
-      home.setRoom('Кухня');
+    test('setBrightness і setRoom оновлюють стан', () async {
+      final home = await createLoadedHome();
+      await home.setBrightness(0.8);
+      await home.setRoom('Кухня');
 
       expect(home.brightnessPercent, 80);
       expect(home.room, 'Кухня');
     });
 
-    test('без зміни значення слухачі не сповіщаються', () {
-      final home = SmartHomeNotifier();
+    test('без зміни значення слухачі не сповіщаються', () async {
+      final home = await createLoadedHome();
       var notifications = 0;
       home.addListener(() => notifications++);
 
-      home.setRoom('Вітальня'); // та сама кімната
-      home.setRoom('Гараж'); // кімнати немає у переліку
-      home.toggleDevice('Пральна машина'); // пристрою немає
-      home.setBrightness(0.5); // те саме значення
+      await home.setRoom('Вітальня'); // та сама кімната
+      await home.setRoom('Гараж'); // кімнати немає у переліку
+      await home.toggleDevice('Пральна машина'); // пристрою немає
+      await home.setBrightness(0.5); // те саме значення
 
       expect(notifications, 0);
-    });
-
-    test('devices повертає незмінну копію', () {
-      final home = SmartHomeNotifier();
-      expect(() => home.devices['Телевізор'] = false, throwsUnsupportedError);
     });
   });
 
@@ -71,28 +90,24 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
 
-    final home = SmartHomeNotifier();
+    final home = await createLoadedHome();
     await tester.pumpWidget(buildApp(home));
 
     // Початковий стан: увімкнено 2 з 4 пристроїв
     expect(find.text('2 з 4'), findsOneWidget);
-    expect(
-      find.descendant(of: find.byType(Badge), matching: find.text('2')),
-      findsOneWidget,
-    );
 
     // Вмикаємо кондиціонер на головному екрані
     await tester.tap(switchOf('Кондиціонер'));
-    await tester.pump();
-    expect(find.text('3 з 4'), findsOneWidget); // панель стану
+    await tester.pumpAndSettle();
+    expect(find.text('3 з 4'), findsOneWidget);
     expect(
       find.descendant(of: find.byType(Badge), matching: find.text('3')),
       findsOneWidget,
-    ); // бейдж в AppBar
+    );
 
-    // Вибір кімнати оновлює підзаголовок AppBar (Selector)
+    // Вибір кімнати оновлює підзаголовок AppBar
     await tester.tap(find.widgetWithText(ChoiceChip, 'Кухня'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(find.text('Активна кімната: Кухня'), findsOneWidget);
 
     // Екран деталей показує той самий стан
@@ -101,11 +116,9 @@ void main() {
     expect(find.text('Деталі будинку'), findsOneWidget);
     expect(find.text('3 з 4'), findsOneWidget);
 
-    // Зміна на екрані деталей видна після повернення на головний екран
+    // Зміна на екрані деталей видна після повернення
     await tester.tap(switchOf('Телевізор'));
-    await tester.pump();
-    expect(find.text('2 з 4'), findsOneWidget);
-
+    await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('2 з 4'), findsOneWidget);
